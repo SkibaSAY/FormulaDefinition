@@ -13,7 +13,7 @@ namespace FormulaDefinition
     {
         private string baseItem;
 
-        private List<OperatorBase> BaseOperators = new List<OperatorBase>()
+        private static List<OperatorBase> BaseOperators = new List<OperatorBase>()
         {
             new NegativeOperators(),
             new ImplicationOperators(),
@@ -31,7 +31,28 @@ namespace FormulaDefinition
 
         #endregion
 
-        public Formula(string inputStr)
+        #region Constructors
+        public Formula(Formula first, OperatorBase operatoR, Formula second = null)
+        {
+            if (first == null && second == null) throw new ArgumentException();
+            if (first != null && operatoR is NegativeOperators)
+            {
+                Operator = operatoR;
+                First = first;
+            }
+            else if (first != null && second != null && !(operatoR is NegativeOperators))
+            {
+                Operator = operatoR;
+                First = first;
+                Second = second;
+            }
+        }
+
+        /// <summary>
+        /// Внутренний конструктор для создания базовых формул
+        /// </summary>
+        /// <param name="inputStr"></param>
+        private Formula(string inputStr)
         {
             if (Rule1.IsMatch(inputStr))
             {
@@ -45,27 +66,49 @@ namespace FormulaDefinition
                 var operation = Rule2.Match(inputStr).Groups["Operator"].Value;
                 Operator = BaseOperators.Find(x => x.Symbols.Contains(operation));
 
-                var second  = Rule2.Match(inputStr).Groups["Second"].Value;
+                var second = Rule2.Match(inputStr).Groups["Second"].Value;
                 Second = new Formula(second);
             }
             else//сработала аксиома 3
             {
                 var first = Rule3.Match(inputStr).Groups["First"].Value;
-                Operator = new NegativeOperators();
+                var negCount = Rule3.Match(inputStr).Groups["Negative"].Value.Length;
+                if (negCount % 2 == 1)
+                    Operator = new NegativeOperators();
                 First = new Formula(first);
             }
         }
-
-        #region Аксиомы
-        public static Regex Rule1 = new Regex(@"^\w+$", RegexOptions.Compiled);
-        public static Regex Rule2 = new Regex($@"^\((?<First>({new NegativeOperators().ToString()})*(\w+))(?<Operator>({new ImplicationOperators().ToString()})|({new AndOperators().ToString()})|({new OrOperators().ToString()}))(?<Second>({new NegativeOperators().ToString()})*(\w+))\)$", RegexOptions.Compiled);
-        public static Regex Rule3 = new Regex($@"^(({new NegativeOperators().ToString()})+)(?<First>\w+)$", RegexOptions.Compiled);
         #endregion
 
-        public static bool ItIsFormula(string inputStr)
+        /// <summary>
+        /// Получение эквивалетной формулы без импликаций
+        /// </summary>
+        public void WithoutInplication()
+        {
+            //показатель того, что дошли до низа
+            if (baseItem != null) return;
+
+            if (Operator is ImplicationOperators)
+            {
+                First = new Formula(First, new NegativeOperators());
+                Operator = new OrOperators();
+                Second = new Formula(Second, new NegativeOperators());
+            }
+            First.WithoutInplication();
+            Second.WithoutInplication();
+        }
+
+        /// <summary>
+        /// Получение формулы по строке
+        /// </summary>
+        /// <param name="inputStr"></param>
+        /// <returns></returns>
+        public static Formula Load(string inputStr)
         {
             var stack = new Stack<string>();
             var iteratorForF = 1;
+
+            var dictFormuls = new Dictionary<string, Formula>();
 
             foreach (var ch in inputStr)
             {
@@ -74,28 +117,38 @@ namespace FormulaDefinition
                     case ')':
 
                         var flag = true;
-                        var sb = new StringBuilder();
-                        sb.Append(")");
+                        var formulElemets = new List<string>();
+                        formulElemets.Add(")");
                         do
                         {
-                            if (stack.Count==0)
+                            if (stack.Count == 0)
                             {
-                                return false;
+                                return null;
                             }
                             else if (stack.Peek().Equals("("))
                             {
                                 flag = false;
                             }
-                            sb.Append(stack.Pop());
+                            formulElemets.Add(stack.Pop());
                         } while (flag);
 
-                        var formulChallenger = String.Join("",(sb.ToString().Reverse()));
+                        formulElemets.Reverse();
+
+                        var formulChallenger = String.Join("", formulElemets);
                         var isFormula = IsFormulaRegex(formulChallenger);
-                        if (!isFormula) return false;
+                        if (!isFormula) return null;
                         else
                         {
-                            stack.Push($"F{iteratorForF}");
+                            var formulKey = $"F{iteratorForF}";
+                            stack.Push(formulKey);
                             iteratorForF++;
+
+                            #region формирование промежуточной формулы
+                            //тк тест пройден, то можно создавать
+                            var formulValue = new Formula(formulChallenger);
+
+                            dictFormuls.Add(formulKey, formulValue);
+                            #endregion
                         }
                         break;
                     default:
@@ -104,19 +157,85 @@ namespace FormulaDefinition
                 }
             }
 
-            //там могла быть константа
             if (stack.Count != 0)
             {
-                var sb = new StringBuilder();
-                while (stack.Count!=0)
+                var formulElements = new List<string>();
+                while (stack.Count != 0)
                 {
-                    sb.Append(stack.Pop());
+                    formulElements.Add(stack.Pop());
                 }
-                var formulChallenger = String.Join("", (sb.ToString().Reverse()));
-                if (!IsFormulaRegex(formulChallenger)) return false;
+
+                formulElements.Reverse();
+
+                var formulChallenger = String.Join("", formulElements);
+
+                if (!IsFormulaRegex(formulChallenger)) return null;
+                else
+                {
+                    var formulValue = new Formula(formulChallenger);
+
+                    dictFormuls.Add("F", formulValue);
+                }
             }
+
+            #region Подставновка в формулы других формул по обозначениям
+
+            var resultFormula = dictFormuls["F"];
+            dictFormuls.Remove("F");
+
+            resultFormula = resultFormula.RecurseSubstitution(dictFormuls);
+            #endregion
+
+            return resultFormula;
+        }
+
+        /// <summary>
+        /// Встроенный метод обхода для замены обозначений на дочерние формулы
+        /// </summary>
+        /// <param name="formulDict"></param>
+        /// <returns></returns>
+        private Formula RecurseSubstitution(Dictionary<string,Formula> formulDict)
+        {
+
+            if (First != null)
+            {
+                First = First.RecurseSubstitution(formulDict);
+            }
+            else if (formulDict.ContainsKey(baseItem))
+            {
+                First = formulDict[baseItem].RecurseSubstitution(formulDict);
+                formulDict.Remove(baseItem);
+                baseItem = null;
+            }
+
+            if (Second != null)
+            {
+                Second = Second.RecurseSubstitution(formulDict);
+            }
+
+            //удаляем промежуточное звено
+            if (First != null && Operator == null && Second == null) return First;
+            return this;
+        }
+
+        /// <summary>
+        /// Проверка на то, формула или нет
+        /// </summary>
+        /// <param name="inputStr"></param>
+        /// <returns></returns>
+        public static bool ItIsFormula(string inputStr)
+        {
+            var formula = Load(inputStr);
+            if (formula == null) return false;
             return true;
         }
+
+        #region Аксиомы
+        public static Regex Rule1 = new Regex(@"^\w+$", RegexOptions.Compiled);
+        public static Regex Rule2 = new Regex($@"^\((?<First>({new NegativeOperators().ToString()})*(\w+))(?<Operator>({new ImplicationOperators().ToString()})|({new AndOperators().ToString()})|({new OrOperators().ToString()}))(?<Second>({new NegativeOperators().ToString()})*(\w+))\)$", RegexOptions.Compiled);
+        public static Regex Rule3 = new Regex($@"^(?<Negative>(({new NegativeOperators().ToString()})+))(?<First>\w+)$", RegexOptions.Compiled);
+        #endregion
+
 
         /// <summary>
         /// Проверка подготовленных строк по 3 правилам
@@ -133,19 +252,19 @@ namespace FormulaDefinition
 
         public override string ToString()
         {
-            var res = First.ToString();
+            string res = "";
             if (Operator == null)
             {
                 res = baseItem;
             }
             else if (Operator is NegativeOperators)//унарный оператор
             {
-                res = Operator.Symbols.First() + res;
+                res = Operator.Symbols.First() + First.ToString();
             }
             else//бинарный оператор
             {
                 //тут обязательны скобки, это для удовлетворения аксиомам формул
-                res = $"({res}{Operator.Symbols.First()}{Second.ToString()})";
+                res = $"({First.ToString()}{Operator.Symbols.First()}{Second.ToString()})";
             }
 
             return res;

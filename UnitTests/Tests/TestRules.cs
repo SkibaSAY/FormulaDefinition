@@ -5,7 +5,7 @@ using FormulaDefinition;
 namespace UnitTests
 {
     [TestClass]
-    public class UnitTests
+    public class TestRules
     {
         [TestMethod]
         public void TestRule1_1()
