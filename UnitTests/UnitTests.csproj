@@ -52,6 +52,9 @@
     <Compile Include="Tests\TestFormula.cs" />
     <Compile Include="Tests\TestRules.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Tests\TestWithoutImplication.cs" />
+    <Compile Include="Tests\TestCloseNegatives.cs" />
+    <Compile Include="Tests\TestDNF.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

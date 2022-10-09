@@ -9,7 +9,7 @@ using FormulaDefinition.Class.Operators;
 
 namespace FormulaDefinition
 {
-    public class Formula
+    public class Formula:ICloneable
     {
         private string baseItem;
 
@@ -32,13 +32,24 @@ namespace FormulaDefinition
         #endregion
 
         #region Constructors
-        public Formula(Formula first, OperatorBase operatoR, Formula second = null)
+        public Formula(Formula first, OperatorBase operatoR, Formula second = null,string baseItem = null)
         {
-            if (first == null && second == null) throw new ArgumentException();
+            if (first == null && second == null && baseItem == null) throw new ArgumentException();
             if (first != null && operatoR is NegativeOperators)
             {
-                Operator = operatoR;
-                First = first;
+                //топим импликацию, чтобы избежать случае ¬¬С вместо C
+                if (first.Operator is NegativeOperators)
+                {
+                    First = first.First.First;
+                    Operator = first.First.Operator;
+                    Second = first.First.Second;
+                    baseItem = first.First.baseItem;
+                }
+                else
+                {
+                    Operator = operatoR;
+                    First = first;
+                }
             }
             else if (first != null && second != null && !(operatoR is NegativeOperators))
             {
@@ -46,6 +57,9 @@ namespace FormulaDefinition
                 First = first;
                 Second = second;
             }
+
+
+            this.baseItem = baseItem;
         }
 
         /// <summary>
@@ -81,6 +95,152 @@ namespace FormulaDefinition
         #endregion
 
         /// <summary>
+        /// Построить Дизьюнктивную нормальную форму(дизьюнкцию элементарных коньюнкций)
+        /// </summary>
+        /// <returns></returns>
+        public Formula DNF()
+        {
+            var dnfFormul = (Formula)this.Clone();
+            dnfFormul.WithoutInplication();
+            dnfFormul.СloseNegatives();
+
+            dnfFormul.BuildDNF(null);
+
+            return dnfFormul;
+        }
+
+        /// <summary>
+        /// Рекурсивный компонент еобразования в DNF
+        /// </summary>
+        private bool BuildDNF(Formula parentFormula)
+        {
+            var stopFlag = false;
+            do
+            {
+                if (Operator is AndOperators)
+                {
+                    var weDoChange = true;
+                    //((A∨B)∧(C∨D))
+                    if (First.Operator is OrOperators && Second.Operator is OrOperators)
+                    {
+                        //внуки
+                        var A = First.First;
+                        var B = First.Second;
+                        var C = Second.First;
+                        var D = Second.Second;
+
+                        //перегруппировка внуков
+                        var grandSon1 = new Formula(A, new AndOperators(), C);
+                        var grandSon2 = new Formula(A, new AndOperators(), D);
+                        var grandSon3 = new Formula(B, new AndOperators(), C);
+                        var grandSon4 = new Formula(B, new AndOperators(), D);
+
+                        Operator = new OrOperators();
+                        First = new Formula(grandSon1, new OrOperators(), grandSon2);
+                        Second = new Formula(grandSon3, new OrOperators(), grandSon4);
+                    }
+                    //((A∨B)∧(C))
+                    else if (First.Operator is OrOperators)
+                    {
+                        var A = First.First;
+                        var B = First.Second;
+                        var C = Second;
+
+                        Operator = new OrOperators();
+                        First = new Formula(A, new AndOperators(), C);
+                        Second = new Formula(B, new AndOperators(), C);
+                    }
+                    //((A)∧(B∨C)) равносильно ((A∧B)∨(A∧C)) по дистрибутивности
+                    else if (Second.Operator is OrOperators)
+                    {
+
+                        var A = First;
+                        var B = Second.First;
+                        var C = Second.Second;
+
+                        Operator = new OrOperators();
+                        First = new Formula(A, new AndOperators(), B);
+                        Second = new Formula(A, new AndOperators(), C);
+                    }
+                    else
+                    {
+                        //(..)∧(..) тут уже отдельные переменные, ничего не меняем 
+                        weDoChange = false;
+                    }
+
+                    //поднимаемся наверх, чтобы всё, что сверху уже было подготовлено
+                    if (parentFormula != null && parentFormula.Operator is AndOperators && weDoChange)
+                    {
+                        //надо проворачивать тот же трюк на уровень выше
+                        return false; //показывает, что нужен повтор на уровне выше
+                    }
+                }
+
+
+
+                if (Operator is NegativeOperators || Operator == null)
+                {
+                    //тк заранее привели к виду тесных отрицаний, отрицания и пустой оператор указывают на то,
+                    //что дальше уже переменная, значит подтверждение не нужно
+                    stopFlag = true;
+                }
+                else
+                {
+                    //если нижние уровни подтвердили, что повтор им не нужен
+                    stopFlag = First.BuildDNF(this) && Second.BuildDNF(this);
+                }
+                
+            } while (!stopFlag);
+
+            //подтверждаем на верх, что у нас всё в порядке
+            return true;
+        }
+
+        /// <summary>
+        /// Построить Коньюнктивную нормальную форму(Коньюнкция нормальных дизьюнкций)
+        /// </summary>
+        /// <returns></returns>
+        public Formula KNF()
+        {
+            return null;
+        }
+
+        /// <summary>
+        /// Приведение к виду формулы с тесными отрицаниями
+        /// </summary>
+        public void СloseNegatives()
+        {
+            if (Operator is NegativeOperators)
+            {
+                if (First.Operator is null)//достигли листа дерева
+                {
+                    return;
+                }
+                else if(First.Operator is OrOperators)
+                {
+                    Operator = new AndOperators();
+                    //сначала меняем second тк  иначе First перетирается
+                    Second = new Formula(First.Second, new NegativeOperators());
+                    First = new Formula(First.First, new NegativeOperators());
+                }
+                else if (First.Operator is AndOperators)
+                {
+                    Operator = new OrOperators();
+                    First = new Formula(First.First, new NegativeOperators());
+                    Second = new Formula(First.Second, new NegativeOperators());
+                }
+            }
+            else if (Operator is ImplicationOperators)
+            {
+                WithoutInplication();
+                СloseNegatives();
+            }
+
+            if (First != null) First.СloseNegatives();
+            if (Second != null) Second.СloseNegatives();
+        }
+
+        /// <summary>
         /// Получение эквивалетной формулы без импликаций
         /// </summary>
         public void WithoutInplication()
@@ -92,10 +252,10 @@ namespace FormulaDefinition
             {
                 First = new Formula(First, new NegativeOperators());
                 Operator = new OrOperators();
-                Second = new Formula(Second, new NegativeOperators());
             }
             First.WithoutInplication();
-            Second.WithoutInplication();
+            if(Second != null)
+                Second.WithoutInplication();
         }
 
         /// <summary>
@@ -268,6 +428,17 @@ namespace FormulaDefinition
             }
 
             return res;
+        }
+
+        public object Clone()
+        {
+            var clone = new Formula(First, Operator, Second,baseItem);
+
+            clone.First = clone.First != null ? (Formula)clone.First.Clone() : null;
+            clone.Second = clone.Second != null ? (Formula)clone.Second.Clone() : null;
+            clone.Operator = Operator;
+            clone.baseItem = clone.baseItem!=null?(string)baseItem.Clone():null;
+            return clone;
         }
     }
 }

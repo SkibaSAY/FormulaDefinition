@@ -9,6 +9,7 @@ namespace FormulaDefinition.Class.Operators
     public abstract class OperatorBase
     {
         public abstract IEnumerable<string> Symbols { get; }
+
         public override string ToString()
         {
             return String.Join("|", Symbols);

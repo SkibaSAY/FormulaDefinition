@@ -2,7 +2,7 @@
 using System;
 using FormulaDefinition;
 
-namespace UnitTests
+namespace UnitTests.Tests
 {
     [TestClass]
     public class TestRules
