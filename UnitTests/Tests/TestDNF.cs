@@ -41,5 +41,16 @@ namespace UnitTests.Tests
             var res = dnfFormula.ToString();
             Assert.AreEqual(result, res);
         }
+        [TestMethod]
+        public void DNF_4()
+        {
+            var input = "(((p→q)→r)→p)";
+            var formula = Formula.Load(input);
+            var dnfFormula = formula.DNF();
+
+            var result = "(((¬p∧¬r)∨(q∧¬r))∨p)";
+            var res = dnfFormula.ToString();
+            Assert.AreEqual(result, res);
+        }
     }
 }

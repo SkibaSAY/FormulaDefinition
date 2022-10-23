@@ -55,6 +55,7 @@
     <Compile Include="Tests\TestWithoutImplication.cs" />
     <Compile Include="Tests\TestCloseNegatives.cs" />
     <Compile Include="Tests\TestDNF.cs" />
+    <Compile Include="Tests\TestKNF.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

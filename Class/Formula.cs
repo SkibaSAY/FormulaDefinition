@@ -110,7 +110,7 @@ namespace FormulaDefinition
         }
 
         /// <summary>
-        /// Рекурсивный компонент еобразования в DNF
+        /// Рекурсивный компонент преобразования в DNF
         /// </summary>
         private bool BuildDNF(Formula parentFormula)
         {
@@ -202,7 +202,96 @@ namespace FormulaDefinition
         /// <returns></returns>
         public Formula KNF()
         {
-            return null;
+            var knfFormul = (Formula)this.Clone();
+            knfFormul.WithoutInplication();
+            knfFormul.СloseNegatives();
+
+            knfFormul.BuildKNF(null);
+
+            return knfFormul;
+        }
+        private bool BuildKNF(Formula parentFormula)
+        {
+            var stopFlag = false;
+            do
+            {
+                if (Operator is OrOperators)
+                {
+                    var weDoChange = true;
+                    //((A∧B)∨(C∧D))
+                    if (First.Operator is AndOperators && Second.Operator is AndOperators)
+                    {
+                        //внуки
+                        var A = First.First;
+                        var B = First.Second;
+                        var C = Second.First;
+                        var D = Second.Second;
+
+                        //перегруппировка внуков
+                        var grandSon1 = new Formula(A, new OrOperators(), C);
+                        var grandSon2 = new Formula(A, new OrOperators(), D);
+                        var grandSon3 = new Formula(B, new OrOperators(), C);
+                        var grandSon4 = new Formula(B, new OrOperators(), D);
+
+                        Operator = new AndOperators();
+                        First = new Formula(grandSon1, new AndOperators(), grandSon2);
+                        Second = new Formula(grandSon3, new AndOperators(), grandSon4);
+                    }
+                    //((A∧B)∨(C))
+                    else if (First.Operator is AndOperators)
+                    {
+                        var A = First.First;
+                        var B = First.Second;
+                        var C = Second;
+
+                        Operator = new AndOperators();
+                        First = new Formula(A, new OrOperators(), C);
+                        Second = new Formula(B, new OrOperators(), C);
+                    }
+                    //((A)∨(B∧C)) равносильно ((A∨B)∧(A∨C)) по дистрибутивности
+                    else if (Second.Operator is AndOperators)
+                    {
+
+                        var A = First;
+                        var B = Second.First;
+                        var C = Second.Second;
+
+                        Operator = new OrOperators();
+                        First = new Formula(A, new OrOperators(), B);
+                        Second = new Formula(A, new OrOperators(), C);
+                    }
+                    else
+                    {
+                        //(..)∨(..) тут уже отдельные переменные, ничего не меняем 
+                        weDoChange = false;
+                    }
+
+                    //поднимаемся наверх, чтобы всё, что сверху уже было подготовлено
+                    if (parentFormula != null && parentFormula.Operator is AndOperators && weDoChange)
+                    {
+                        //надо проворачивать тот же трюк на уровень выше
+                        return false; //показывает, что нужен повтор на уровне выше
+                    }
+                }
+
+
+
+                if (Operator is NegativeOperators || Operator == null)
+                {
+                    //тк заранее привели к виду тесных отрицаний, отрицания и пустой оператор указывают на то,
+                    //что дальше уже переменная, значит подтверждение не нужно
+                    stopFlag = true;
+                }
+                else
+                {
+                    //если нижние уровни подтвердили, что повтор им не нужен
+                    stopFlag = First.BuildKNF(this) && Second.BuildKNF(this);
+                }
+
+            } while (!stopFlag);
+
+            //подтверждаем на верх, что у нас всё в порядке
+            return true;
         }
 
         /// <summary>
