@@ -9,5 +9,10 @@ namespace FormulaDefinition.Class.Operators
     public class NegativeOperators : OperatorBase
     {
         public override IEnumerable<string> Symbols => new List<string>(){ "¬","!"};
+        public override bool ComputeValue(params bool[] values)
+        {
+            var result = !values[0];
+            return result;
+        }
     }
 }

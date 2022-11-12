@@ -13,10 +13,12 @@ namespace FormulaDefinition
         {
             var inputFormula = File.ReadAllText("input.txt");
 
+            var flag = false;
             //Задача 1 формула или нет
             if (Formula.ItIsFormula(inputFormula))
             {
                 Console.WriteLine(inputFormula+"  -формула");
+                flag = true;
             }
             else
             {
@@ -26,6 +28,12 @@ namespace FormulaDefinition
             Console.WriteLine(Formula.ItIsFormula(inputFormula));
 
             //задача 2 КНФ и ДНФ
+            if (flag)
+            {
+                var formula = Formula.Load(inputFormula);
+                Console.WriteLine(formula.DNF().ToString());
+                Console.WriteLine(formula.KNF().ToString());
+            }
         }
     }
 }

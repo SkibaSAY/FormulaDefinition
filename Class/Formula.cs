@@ -529,5 +529,130 @@ namespace FormulaDefinition
             clone.baseItem = clone.baseItem!=null?(string)baseItem.Clone():null;
             return clone;
         }
+
+        /// <summary>
+        /// Возвращает все пропозициональные переменные формулы
+        /// </summary>
+        /// <returns></returns>
+        public HashSet<string> GetPropozVariables()
+        {
+            var propozParamsList = new HashSet<string>();
+            GetPropozVariablesRecurse(propozParamsList);
+            return propozParamsList;
+        }
+        /// <summary>
+        /// Рекурсивный обход для определения всех пропозициональных переменных
+        /// </summary>
+        /// <param name="propozVariables"></param>
+        private void GetPropozVariablesRecurse(HashSet<string> propozVariables)
+        {
+            if (baseItem == null)
+            {
+                this.First.GetPropozVariablesRecurse(propozVariables);
+                if(this.Second!=null)
+                    this.Second.GetPropozVariablesRecurse(propozVariables);
+            }
+            else propozVariables.Add(baseItem);
+        }
+
+        /// <summary>
+        /// Возращает таблицу истинности
+        /// </summary>
+        /// <param name="propozVariables"></param>
+        /// <returns></returns>
+        public bool[,] GetTruthTable(IEnumerable<string> propozVariables)
+        {
+            var variables = propozVariables.ToList();
+            var rowsCount = (int)Math.Pow(2, variables.Count);
+            var columsCount = variables.Count;
+
+            var table = new bool[rowsCount, columsCount+1];
+
+            //инициализация Интерпретаций
+            var propozValues = new Dictionary<string, bool>();
+            foreach(var variable in variables)
+            {
+                propozValues.Add(variable, false);
+            }
+
+            for (int i = 0; i < rowsCount; i++)
+            {             
+                var curNum = i;
+                var devidedCount = 1;
+                while (curNum != 0)
+                {
+                    var residue = curNum % 2;
+
+                    var columnNum = columsCount - devidedCount;
+
+                    //заполняем словарь для последующего вычисления
+                    var key = variables[columnNum];
+
+                    var logicResidue = residue == 1 ? true : false;
+                    propozValues[key] = logicResidue;
+
+                    //заполняем таблицу
+                    table[i, columnNum] = logicResidue;
+
+                    curNum /= 2;
+                    devidedCount++;
+                }
+                table[i, columsCount] = ComputeValueByVariables(propozValues);
+            }
+            return table;
+        }
+
+        /// <summary>
+        /// Вычисление значения формулы по заданным значениям пропозициональных переменных
+        /// </summary>
+        /// <param name="propozeValues"></param>
+        /// <returns></returns>
+        public bool ComputeValueByVariables(Dictionary<string, bool> variables)
+        {
+            if (baseItem != null) return variables[baseItem];
+            else if (Second != null)
+            {
+                return Operator.ComputeValue
+                (
+                    First.ComputeValueByVariables(variables),
+                    Second.ComputeValueByVariables(variables)
+                );
+            }
+            else
+                return Operator.ComputeValue(
+                    First.ComputeValueByVariables(variables)
+                    );
+        }
+
+        /// <summary>
+        /// Эквивалентность формул
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <returns></returns>
+        public override bool Equals(object obj)
+        {
+            if (!(obj is Formula)) return false;
+            var secondFormula = obj as Formula;
+
+            //получения всех пропозициональных переменных
+            var propozVariablesHash = GetPropozVariables();
+            propozVariablesHash.UnionWith(secondFormula.GetPropozVariables());
+
+            var propozVariables = propozVariablesHash.ToList();
+
+            //получили таблицы истинности
+            var thisTable = GetTruthTable(propozVariables);
+            var secondFormulaTable = secondFormula.GetTruthTable(propozVariables);
+
+            //проверяем значения в таблице истинности
+            var columsCount = (propozVariables.Count + 1);
+            var rowsCount = thisTable.Length / columsCount;
+            for (int i = 0; i < rowsCount; i++)
+            {
+                if (thisTable[i, columsCount - 1] != secondFormulaTable[i, columsCount - 1]) return false;
+            }
+
+            return true;
+        }
     }
 }

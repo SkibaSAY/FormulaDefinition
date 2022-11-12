@@ -14,5 +14,6 @@ namespace FormulaDefinition.Class.Operators
         {
             return String.Join("|", Symbols);
         }
+        public abstract bool ComputeValue(params bool[] values);
     }
 }
