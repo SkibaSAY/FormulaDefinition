@@ -88,8 +88,14 @@ namespace FormulaDefinition
                 var first = Rule3.Match(inputStr).Groups["First"].Value;
                 var negCount = Rule3.Match(inputStr).Groups["Negative"].Value.Length;
                 if (negCount % 2 == 1)
+                {
                     Operator = new NegativeOperators();
-                First = new Formula(first);
+                    First = new Formula(first);
+                }
+                else
+                {
+                    baseItem = first;
+                }
             }
         }
         #endregion
@@ -432,39 +438,146 @@ namespace FormulaDefinition
             var resultFormula = dictFormuls["F"];
             dictFormuls.Remove("F");
 
-            resultFormula = resultFormula.RecurseSubstitution(dictFormuls);
+            resultFormula = resultFormula.RecurseSubstitution(dictFormuls,true);
             #endregion
 
             return resultFormula;
         }
 
         /// <summary>
-        /// Встроенный метод обхода для замены обозначений на дочерние формулы
+        /// Метод обхода для замены обозначений на дочерние формулы 
         /// </summary>
         /// <param name="formulDict"></param>
+        /// /// <param name="isUsingForSubstitution">использовать ли замену в подстановках</param>
         /// <returns></returns>
-        private Formula RecurseSubstitution(Dictionary<string,Formula> formulDict)
+        public Formula RecurseSubstitution(Dictionary<string, Formula> formulDict, bool isUsingForSubstitution = false)
         {
-
+            var result = (Formula)this.Clone();
+            result = result.RecurseSubstitutionPrivate(formulDict, isUsingForSubstitution);
+            return result;
+        }
+        /// <summary>
+        /// Приватный Метод обхода для замены обозначений на дочерние формулы 
+        /// !!!Он меняет исходную формулу, поэтому 
+        /// в публичном RecurseSubstitution используется клонирование
+        /// </summary>
+        /// <param name="formulDict"></param>
+        /// /// <param name="isUsingForSubstitution">использовать ли замену в подстановках</param>
+        /// <returns></returns>
+        private Formula RecurseSubstitutionPrivate(Dictionary<string,Formula> formulDict,bool isUsingForSubstitution=false)
+        {
             if (First != null)
             {
-                First = First.RecurseSubstitution(formulDict);
+                First = First.RecurseSubstitutionPrivate(formulDict, isUsingForSubstitution);
             }
             else if (formulDict.ContainsKey(baseItem))
             {
-                First = formulDict[baseItem].RecurseSubstitution(formulDict);
-                formulDict.Remove(baseItem);
+                if (isUsingForSubstitution)
+                {
+                    First = formulDict[baseItem].RecurseSubstitutionPrivate(formulDict, isUsingForSubstitution);
+                }
+                else
+                {
+                    First = formulDict[baseItem];
+                }
+                //formulDict.Remove(baseItem);
                 baseItem = null;
             }
 
             if (Second != null)
             {
-                Second = Second.RecurseSubstitution(formulDict);
+                Second = Second.RecurseSubstitutionPrivate(formulDict, isUsingForSubstitution);
             }
 
             //удаляем промежуточное звено
             if (First != null && Operator == null && Second == null) return First;
             return this;
+        }
+
+        /// <summary>
+        /// Проверяет, что формула получена из родительской некоторой подстановкой
+        /// </summary>
+        /// <param name="parentFormul"></param>
+        /// <returns>
+        /// Список подстановок, если формула получена из родительской подстановкой.
+        /// null ,если иначе
+        /// </returns>
+        public Dictionary<string,Formula> IsDerivedFrom(Formula parentFormul)
+        {
+            var substitution = new Dictionary<string, Formula>();
+            IsDerivedFromRecurseParent(parentFormul, ref substitution);
+            return substitution;
+        }
+        /// <summary>
+        /// рекурсивный обход для проверки , что формула получена из родительской некоторой подстановкой
+        /// </summary>
+        /// <param name="parentFormul"></param>
+        /// <param name="substitution"></param>
+        private void IsDerivedFromRecurseParent(Formula parentFormul, ref Dictionary<string, Formula> substitution)
+        {
+            if (substitution == null) return;
+
+            //parrent: !A  child: !B  => A = B
+            if(parentFormul.Operator is NegativeOperators && this.Operator is NegativeOperators)
+            {
+                First.IsDerivedFromRecurseParent(parentFormul.First, ref substitution);
+            }
+            //parrent: !A  child: B => A = !B
+            else if (parentFormul.Operator is NegativeOperators)
+            {
+                var newChild = new Formula(this, new NegativeOperators());
+                newChild.IsDerivedFromRecurseParent(parentFormul.First, ref substitution);
+            }
+
+            //parrent: (A→B) child: (B→C)  →равны, поэтому продолжаем дальше раскручивать формулу
+            else if (parentFormul.Operator != null && this.Operator!=null && parentFormul.Operator.GetType() == this.Operator.GetType())
+            {
+                First.IsDerivedFromRecurseParent(parentFormul.First, ref substitution);
+                Second.IsDerivedFromRecurseParent(parentFormul.Second, ref substitution);
+            }
+
+            //дошли до пропозициональной переменной
+            else if(parentFormul.Operator == null)
+            {
+                if (substitution.ContainsKey(parentFormul.baseItem) && substitution[parentFormul.baseItem].ToString().Equals(this.ToString()))
+                {
+                    //ничего не делаем, всё в порядке
+                }
+                //не содержится - добавляем
+                else if (!substitution.ContainsKey(parentFormul.baseItem))
+                {
+                    substitution.Add(parentFormul.baseItem, this);
+                }
+                //подстановки в пропозициональную переменную не совпадают - значит всё не подстановка
+                else
+                {
+                    substitution = null;
+                }
+            }
+            //вышли за случаи, например: parrent: (A→B)
+            //child: C
+            //или child: !C
+            //или child: (B∨C) 
+            else
+            {
+                substitution = null;
+            }
+        }
+
+        /// <summary>
+        /// Проверка, что формула получена хотя бы из одной из переданных формул 
+        /// </summary>
+        /// <param name="axioms"></param>
+        /// <returns></returns>
+        public bool IsAxiom(List<Formula> axioms)
+        {
+            foreach(var axiom in axioms)
+            {
+                var substitution = IsDerivedFrom(axiom);
+                //из какой-то аксиомы удалось получить нашу формулу некоторой подстановкой
+                if (substitution != null) return true;
+            }
+            return false;
         }
 
         /// <summary>

@@ -57,6 +57,8 @@
     <Compile Include="Tests\TestDNF.cs" />
     <Compile Include="Tests\TestKNF.cs" />
     <Compile Include="Tests\TestEquals.cs" />
+    <Compile Include="Tests\TestIsAxiom.cs" />
+    <Compile Include="Tests\Test_RecurseSubstitution.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
