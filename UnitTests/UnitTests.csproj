@@ -49,16 +49,18 @@
     <Reference Include="System.Core" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Tests\TestFormula.cs" />
-    <Compile Include="Tests\TestRules.cs" />
+    <Compile Include="FormulaConlution\FormulaConlutionTest.cs" />
+    <Compile Include="Formula\TestFormula.cs" />
+    <Compile Include="Formula\TestRules.cs" />
+    <Compile Include="MPRule\MPRuleTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Tests\TestWithoutImplication.cs" />
-    <Compile Include="Tests\TestCloseNegatives.cs" />
-    <Compile Include="Tests\TestDNF.cs" />
-    <Compile Include="Tests\TestKNF.cs" />
-    <Compile Include="Tests\TestEquals.cs" />
-    <Compile Include="Tests\TestIsAxiom.cs" />
-    <Compile Include="Tests\Test_RecurseSubstitution.cs" />
+    <Compile Include="Formula\TestWithoutImplication.cs" />
+    <Compile Include="Formula\TestCloseNegatives.cs" />
+    <Compile Include="Formula\TestDNF.cs" />
+    <Compile Include="Formula\TestKNF.cs" />
+    <Compile Include="Formula\TestEquals.cs" />
+    <Compile Include="Formula\TestIsAxiom.cs" />
+    <Compile Include="Formula\Test_RecurseSubstitution.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

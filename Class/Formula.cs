@@ -571,13 +571,26 @@ namespace FormulaDefinition
         /// <returns></returns>
         public bool IsAxiom(List<Formula> axioms)
         {
-            foreach(var axiom in axioms)
+            var equalAxiom = GetEqualAxiom(axioms);
+            if (equalAxiom != null) return true;
+            return false;
+        }
+        public Formula GetEqualAxiom(List<Formula> axioms)
+        {
+            Formula equalAxiom = null;
+
+            foreach (var axiom in axioms)
             {
                 var substitution = IsDerivedFrom(axiom);
                 //из какой-то аксиомы удалось получить нашу формулу некоторой подстановкой
-                if (substitution != null) return true;
+                if (substitution != null)
+                {
+                    equalAxiom = axiom;
+                    break;
+                }
             }
-            return false;
+
+            return equalAxiom;
         }
 
         /// <summary>
@@ -653,6 +666,7 @@ namespace FormulaDefinition
             GetPropozVariablesRecurse(propozParamsList);
             return propozParamsList;
         }
+
         /// <summary>
         /// Рекурсивный обход для определения всех пропозициональных переменных
         /// </summary>
@@ -767,5 +781,6 @@ namespace FormulaDefinition
 
             return true;
         }
+
     }
 }

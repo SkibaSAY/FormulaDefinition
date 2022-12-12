@@ -43,6 +43,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Class\FormulaConcution\FormulConlution.cs" />
+    <Compile Include="Class\FormulaConcution\MPRule.cs" />
     <Compile Include="Class\Operators\AndOperators.cs" />
     <Compile Include="Class\Formula.cs" />
     <Compile Include="Class\Operators\ImplicationOperators.cs" />

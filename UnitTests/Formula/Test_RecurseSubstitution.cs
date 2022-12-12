@@ -3,7 +3,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System;
 using System.Collections.Generic;
 
-namespace UnitTests.Tests
+namespace UnitTests
 {
     [TestClass]
     public class Test_RecurseSubstitution
