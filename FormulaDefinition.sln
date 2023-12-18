@@ -7,7 +7,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FormulaDefinition", "Formul
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnitTests", "UnitTests\UnitTests.csproj", "{43730057-84B6-4E6C-9F97-23A5C3885E9C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TeorVer_MaxSAT", "..\TeorVer_MaxSAT\TeorVer_MaxSAT.csproj", "{D238C77A-50FA-4111-9113-CD1589F7D111}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TeorVer_MaxSAT", "TeorVer_MaxSAT\TeorVer_MaxSAT.csproj", "{D238C77A-50FA-4111-9113-CD1589F7D111}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
